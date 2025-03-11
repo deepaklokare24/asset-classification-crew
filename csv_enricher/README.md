@@ -6,9 +6,10 @@ This application uses CrewAI agents with CSV RAG Search to fill missing data in 
 
 - Upload CSV files with missing asset categorization values
 - AI-powered data enrichment using CrewAI agents with CSV RAG Search
-- Semantic search capabilities using Ollama embeddings (runs locally)
+- Semantic search capabilities using Hugging Face embeddings (runs locally)
 - Real-time progress tracking
 - Download enriched CSV files with filled values
+- Automatic category matching using Cluster IDs
 
 ## Setup
 
@@ -19,34 +20,27 @@ This application uses CrewAI agents with CSV RAG Search to fill missing data in 
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Install Ollama:
-   - You can use our installation script which will install Ollama and the required embedding model:
-     ```bash
-     python install_ollama.py
-     ```
-   - Or follow the instructions at [ollama.ai](https://ollama.ai) to install Ollama manually
-   - Make sure the Ollama service is running
-   - Pull the embedding model: `ollama pull nomic-embed-text`
-   - Make sure the Ollama service is running:
-     ```bash
-      ollama serve
-   ```
-
-4. Install dependencies:
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
    If you encounter any issues with the installation, you can try installing directly:
    ```bash
-   pip install 'crewai[tools]' fastapi uvicorn streamlit python-multipart pandas anthropic ollama==0.4.7 langchain-anthropic python-dotenv tqdm
+   pip install 'crewai[tools]' fastapi uvicorn streamlit python-multipart pandas anthropic sentence-transformers torch transformers langchain-huggingface python-dotenv tqdm
    ```
+
+4. Install Hugging Face models:
+   ```bash
+   python install_huggingface.py
+   ```
+   This script will download and cache the Hugging Face models locally, making them available for offline use.
 
 5. Create a `.env` file with your API keys:
    ```
    ANTHROPIC_API_KEY=your_anthropic_api_key_here
-   # No additional API keys needed for Ollama as it runs locally
    ```
+
 6. Run the setup script to copy the source CSV file:
    ```
    python setup.py
@@ -91,7 +85,7 @@ python run.py --backend-only
 
 ## How It Works
 
-The application uses CrewAI's CSV RAG Search tool with Anthropic Claude and Ollama embeddings to semantically search through a source CSV file and find relevant information to fill in missing values in the uploaded CSV file. The process involves three specialized agents:
+The application uses CrewAI's CSV RAG Search tool with Anthropic Claude and Hugging Face embeddings to semantically search through a source CSV file and find relevant information to fill in missing values in the uploaded CSV file. The process involves three specialized agents:
 
 1. **CSV Data Analyzer**: Analyzes the input CSV file to identify missing data and understand the data structure
 2. **Data Enrichment Specialist**: Uses the CSV RAG Search tool to find appropriate category values for rows with missing data and directly processes the CSV file using code execution
@@ -99,15 +93,15 @@ The application uses CrewAI's CSV RAG Search tool with Anthropic Claude and Olla
 
 These agents work together in a sequential process, with each agent building on the work of the previous one.
 
-### Performance Optimization with Caching
+### Improved Enrichment Process
 
-The application now includes a caching mechanism for ChromaDB embeddings to significantly improve performance on subsequent runs:
+The application now includes an improved enrichment process that uses multiple strategies to fill in missing category values:
 
-- The first time you process a CSV file, the application creates embeddings for the source CSV file, which can take some time
-- These embeddings are cached in a pickle file in the `data/cache` directory
-- On subsequent runs, the application checks if a valid cache exists and uses it instead of recreating the embeddings
-- This reduces processing time from minutes to seconds for repeated operations
-- The cache is automatically invalidated if the source CSV file changes
+1. **Cluster-Based Matching**: The application first tries to match products based on their Cluster ID, which groups similar products together. If one product in a cluster has category information, it applies that information to other products in the same cluster.
+
+2. **Semantic Search**: For products that can't be matched by Cluster ID, the application uses semantic search to find similar products in the source CSV file and extracts category information from the search results.
+
+3. **Fallback Mechanism**: If the agent-based enrichment fails, the application uses a fallback mechanism that directly processes the CSV file to ensure that all possible enrichments are applied.
 
 ### Code Execution for Direct CSV Processing
 
@@ -124,17 +118,24 @@ This direct code execution approach ensures more reliable and accurate enrichmen
 - Handle edge cases more effectively
 - Ensure all missing fields are properly filled
 
-## Why Ollama Embeddings?
+## Why Hugging Face Embeddings?
 
-We use Ollama embeddings for semantic search capabilities. Ollama is an open-source project that allows you to run embedding models locally without requiring external API calls. This makes it ideal for environments with restricted network access. The nomic-embed-text model provides high-quality embeddings that work well with our CSV RAG Search tool.
+We use Hugging Face embeddings for semantic search capabilities. Hugging Face provides high-quality, open-source models that can run entirely locally without requiring external API calls. This makes it ideal for environments with restricted network access or privacy requirements.
 
-We're using Ollama version 0.4.7, which is the latest stable version as of January 2025.
+The `sentence-transformers/all-MiniLM-L6-v2` model we use is:
+- Lightweight (only ~80MB)
+- Fast to run, even on CPU
+- Provides excellent semantic search capabilities
+- Works completely offline once downloaded
+- Produces 384-dimensional embeddings that capture semantic meaning well
+
+All models are downloaded and cached locally during installation, so no internet connection is required during operation.
 
 ## Testing
 
 You can test the application using the provided test script:
 ```
-python test.py
+python test_enrichment.py
 ```
 
 This will run the CSV enrichment process on the sample input file and verify that it works correctly.
@@ -146,18 +147,18 @@ This will run the CSV enrichment process on the sample input file and verify tha
 - Ensure that the source CSV file is correctly placed in the data directory.
 - If you're experiencing issues with the CSV RAG Search tool, try adjusting the configuration in the `csv_enrichment_crew.py` file.
 - If you see import errors, make sure you're running the application using the `run.py` script.
-- If you encounter issues with Ollama:
-  - Ensure the Ollama service is running (`ollama serve`)
-  - Verify the nomic-embed-text model is installed (`ollama list`)
-  - Check that you have the correct version of the Ollama Python package (`pip show ollama`)
-- If you see an error about missing `langchain-anthropic`, install it with:
+- If you encounter issues with Hugging Face models:
+  - Run `python install_huggingface.py` again to ensure all models are downloaded
+  - Check your system's CUDA configuration if you have a GPU
+  - For CPU-only systems, no special configuration is needed
+- If you see an error about missing `langchain-huggingface`, install it with:
   ```bash
-  pip install langchain-anthropic
+  pip install langchain-huggingface
   ```
 - If the embedding process is taking too long:
-  - Check if the cache directory (`data/cache`) exists and has proper permissions
-  - You can manually clear the cache by deleting files in the `data/cache` directory
-  - If you're processing a very large CSV file, the initial embedding creation will take longer
+  - The first run will be slower as it needs to load the model into memory
+  - Subsequent runs should be faster
+  - Consider using a smaller model if performance is an issue
 
 ## License
 

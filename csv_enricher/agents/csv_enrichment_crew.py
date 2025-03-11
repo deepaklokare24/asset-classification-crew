@@ -58,10 +58,9 @@ class CSVEnrichmentCrew:
                     )
                 ),
                 embedder=dict(
-                    provider="ollama",
+                    provider="huggingface",
                     config=dict(
-                        model="nomic-embed-text",
-                        base_url="http://localhost:11434"
+                        model="sentence-transformers/all-MiniLM-L6-v2"  # Lightweight, fast model that works well for semantic search
                     )
                 )
             )
