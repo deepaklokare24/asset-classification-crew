@@ -36,6 +36,24 @@ This application uses CrewAI agents with CSV RAG Search to fill missing data in 
    ```
    This script will download and cache the Hugging Face models locally, making them available for offline use.
 
+   **For environments with SSL certificate issues:**
+   
+   If you encounter SSL certificate errors when downloading models, follow these steps:
+   
+   a. On a machine with internet access:
+   ```bash
+   python download_huggingface_model.py
+   ```
+   This will download the model and create a zip file in the `models` directory.
+   
+   b. Transfer the model directory or zip file to your restricted environment.
+   
+   c. On the restricted machine:
+   ```bash
+   python install_local_huggingface.py models/sentence-transformers/all-MiniLM-L6-v2
+   ```
+   This will set up the model for local use without requiring internet access.
+
 5. Create a `.env` file with your API keys:
    ```
    ANTHROPIC_API_KEY=your_anthropic_api_key_here
@@ -131,6 +149,34 @@ The `sentence-transformers/all-MiniLM-L6-v2` model we use is:
 
 All models are downloaded and cached locally during installation, so no internet connection is required during operation.
 
+## Working in Restricted Network Environments
+
+If you're working in an environment with restricted network access or SSL certificate issues, follow these steps:
+
+1. **Download the model on a machine with internet access:**
+   ```bash
+   python download_huggingface_model.py
+   ```
+   This creates a portable model package in the `models` directory and a zip file for easy transfer.
+
+2. **Transfer the model to your restricted environment:**
+   - Copy the entire `models/sentence-transformers/all-MiniLM-L6-v2` directory, or
+   - Transfer the zip file `models/sentence-transformers_all-MiniLM-L6-v2.zip` and extract it
+
+3. **Install the model locally:**
+   ```bash
+   python install_local_huggingface.py models/sentence-transformers/all-MiniLM-L6-v2
+   ```
+   This sets up the model in the Hugging Face cache directory without requiring internet access.
+
+4. **Verify the installation:**
+   The script will automatically verify that the model can be loaded and used.
+
+5. **Run the application as normal:**
+   ```bash
+   python run.py
+   ```
+
 ## Testing
 
 You can test the application using the provided test script:
@@ -151,6 +197,7 @@ This will run the CSV enrichment process on the sample input file and verify tha
   - Run `python install_huggingface.py` again to ensure all models are downloaded
   - Check your system's CUDA configuration if you have a GPU
   - For CPU-only systems, no special configuration is needed
+  - For SSL certificate errors, use the offline installation method described above
 - If you see an error about missing `langchain-huggingface`, install it with:
   ```bash
   pip install langchain-huggingface
